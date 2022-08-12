@@ -2,6 +2,7 @@
 
 ![2022-08-12 17 59 22](https://user-images.githubusercontent.com/47273077/184322062-389d6d69-c908-43b0-a9fb-3504b43c5646.gif)
 
+MainActivity
 ```kt
 class MainActivity : AppCompatActivity() {
 
@@ -44,5 +45,53 @@ class MainActivity : AppCompatActivity() {
             }
         })
     }
+}
+```
+
+ViewModel
+```kt
+class ListViewModel: ViewModel() {
+
+    val countriesService = CountriesService.getCountriesService()
+    var job: Job? = null
+    val exceptionHandler = CoroutineExceptionHandler { coroutineContext, throwable ->
+        onError("Exception: ${throwable.localizedMessage}")
+    }
+
+    val countries = MutableLiveData<List<Country>>()
+    val countryLoadError = MutableLiveData<String?>()
+    val loading = MutableLiveData<Boolean>()
+
+    fun refresh() {
+        fetchCountries()
+    }
+
+    private fun fetchCountries() {
+        loading.value = true
+
+        job = CoroutineScope(Dispatchers.IO + exceptionHandler).launch {
+            val response = countriesService.getCountries()
+            withContext(Dispatchers.Main) {
+                if(response.isSuccessful) {
+                    countries.value = response.body()
+                    countryLoadError.value = null
+                    loading.value = false
+                } else {
+                    onError("Error: ${response.message()}")
+                }
+            }
+        }
+    }
+
+    private fun onError(message: String) {
+        countryLoadError.value = message
+        loading.value = false
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        job?.cancel()
+    }
+
 }
 ```
